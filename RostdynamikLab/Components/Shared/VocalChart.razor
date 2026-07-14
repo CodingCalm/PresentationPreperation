@@ -81,9 +81,9 @@ else
                     var cx = XScale(marker.Time);
                     var cy = YScale(val);
                     var isSelected = IsSelected(marker);
-                    var ratio = MarkerRange > 0 ? (val - MarkerMin) / MarkerRange : 0.5;
-                    var isHigh = ratio >= 0.70;
-                    var isLow = ratio <= 0.30;
+                    var level = VocalLevels.Classify(val, MarkerMin, MarkerMax);
+                    var isHigh = level == VocalLevel.High;
+                    var isLow = level == VocalLevel.Low;
                     var yOffset = isSelected ? 32.0 : (index % 2 == 0 ? 16.0 : 28.0);
 
                     var themeColor = isSelected ? "#FBBF24" : (isHigh ? HighColor : (isLow ? LowColor : "#FBBF24"));
@@ -188,7 +188,6 @@ else
 
     private double MarkerMin => WordMarkers is { Count: > 0 } ? WordMarkers.Min(Value) : YMin;
     private double MarkerMax => WordMarkers is { Count: > 0 } ? WordMarkers.Max(Value) : YMax;
-    private double MarkerRange => MarkerMax - MarkerMin;
 
     private double XScale(double time)
     {

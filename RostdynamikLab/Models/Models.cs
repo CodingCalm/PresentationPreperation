@@ -52,4 +52,30 @@ public class ChatMessage
     public required string Sender { get; init; } // "user" eller "ai"
     public required string Text { get; init; }
     public DateTime Timestamp { get; init; } = DateTime.Now;
+
+    public bool IsUser => Sender == "user";
+
+    public static ChatMessage FromUser(string text) =>
+        new() { Id = $"user-{DateTime.Now.Ticks}", Sender = "user", Text = text };
+
+    public static ChatMessage FromAi(string text) =>
+        new() { Id = $"ai-{DateTime.Now.Ticks}", Sender = "ai", Text = text };
+}
+
+public enum VocalLevel { Low, Normal, High }
+
+public static class VocalLevels
+{
+    // Andel av markörernas spann som räknas som relativt hög/låg (samma i grafer och tidslinje)
+    public const double HighThreshold = 0.70;
+    public const double LowThreshold = 0.30;
+
+    public static VocalLevel Classify(double value, double min, double max)
+    {
+        var range = max - min;
+        var ratio = range > 0 ? (value - min) / range : 0.5;
+        return ratio >= HighThreshold ? VocalLevel.High
+            : ratio <= LowThreshold ? VocalLevel.Low
+            : VocalLevel.Normal;
+    }
 }

@@ -119,9 +119,9 @@
                 @if (wordMarkers is { Count: > 0 })
                 {
                     var minMarkerPitch = wordMarkers.Min(m => m.Pitch);
-                    var pitchRange = wordMarkers.Max(m => m.Pitch) - minMarkerPitch;
+                    var maxMarkerPitch = wordMarkers.Max(m => m.Pitch);
                     var minMarkerIntensity = wordMarkers.Min(m => m.Intensity);
-                    var intensityRange = wordMarkers.Max(m => m.Intensity) - minMarkerIntensity;
+                    var maxMarkerIntensity = wordMarkers.Max(m => m.Intensity);
 
                     <div class="mt-6 bg-gray-850 border border-gray-750 p-4 rounded-xl shadow-xl">
                         <h3 class="text-md font-semibold text-purple-300 mb-2 flex items-center justify-between flex-wrap gap-2">
@@ -142,12 +142,12 @@
                             {
                                 var m = marker;
                                 var isSelected = selectedWord is not null && selectedWord.Word == m.Word && Math.Abs(selectedWord.Time - m.Time) < 0.05;
-                                var pitchRatio = pitchRange > 0 ? (m.Pitch - minMarkerPitch) / pitchRange : 0.5;
-                                var isHighPitch = pitchRatio >= 0.70;
-                                var isLowPitch = pitchRatio <= 0.30;
-                                var intensityRatio = intensityRange > 0 ? (m.Intensity - minMarkerIntensity) / intensityRange : 0.5;
-                                var isHighIntensity = intensityRatio >= 0.70;
-                                var isLowIntensity = intensityRatio <= 0.30;
+                                var pitchLevel = VocalLevels.Classify(m.Pitch, minMarkerPitch, maxMarkerPitch);
+                                var isHighPitch = pitchLevel == VocalLevel.High;
+                                var isLowPitch = pitchLevel == VocalLevel.Low;
+                                var intensityLevel = VocalLevels.Classify(m.Intensity, minMarkerIntensity, maxMarkerIntensity);
+                                var isHighIntensity = intensityLevel == VocalLevel.High;
+                                var isLowIntensity = intensityLevel == VocalLevel.Low;
 
                                 <button @onclick="() => selectedWord = isSelected ? null : m"
                                         @onmouseover="() => selectedWord = m"
@@ -237,8 +237,6 @@
     private WordMarkerPoint? selectedWord;
     private AudioRecorder? audioRecorder;
 
-    private static readonly Random random = new();
-
     protected override void OnInitialized()
     {
         // Startmanuset laddas lokalt utan API-anrop; Gemini anropas först när
@@ -270,22 +268,9 @@
 
         try
         {
-            var swedishObjectiveTerm = currentPracticeMode.SwedishObjective();
-            scriptObjective = string.IsNullOrWhiteSpace(currentCustomInstructions)
-                ? $"Öva en {swedishObjectiveTerm} ton."
-                : $"Öva en {swedishObjectiveTerm} ton angående: \"{currentCustomInstructions.Trim()}\".";
-
-            var englishPromptTerm = currentPracticeMode.EnglishPromptTerm();
-            var commonJsonInstruction =
-                "Generera ett JSON-objekt med två nycklar: \"script\" och \"hint\". \"script\" ska vara ett kort övningsmanus (2-3 meningar) på svenska. " +
-                "\"hint\" ska vara ett koncist (1 mening) tips på svenska, direkt relaterat till att öva detta specifika manus med den angivna tonen. " +
-                "Inkludera inte tipset inom manustexten. Se till att hela outputen är giltig JSON och att både manus och tips är på svenska.";
-
-            var fullPrompt = string.IsNullOrWhiteSpace(currentCustomInstructions)
-                ? $"\"script\" ska vara utformat för att hjälpa någon att öva en {englishPromptTerm} talton och vara lämpligt för övning av röstvariation. {commonJsonInstruction}"
-                : $"\"script\" ska handla om \"{currentCustomInstructions.Trim()}\" för en {englishPromptTerm} talton. {commonJsonInstruction}";
-
-            (currentScript, scriptHint) = await Gemini.GeneratePracticeScriptAsync(fullPrompt);
+            scriptObjective = PromptBuilder.ScriptObjective(currentPracticeMode, currentCustomInstructions);
+            (currentScript, scriptHint) = await Gemini.GeneratePracticeScriptAsync(
+                PromptBuilder.ScriptPrompt(currentPracticeMode, currentCustomInstructions));
         }
         catch (Exception)
         {
@@ -312,7 +297,8 @@
                 base64Audio = audio.Value.Base64;
                 audioMimeType = audio.Value.MimeType;
 
-                GenerateMockVocalData();
+                vocalData = MockVocalDataGenerator.GenerateCurve();
+                wordMarkers = MockVocalDataGenerator.GenerateWordMarkers(currentScript, vocalData);
                 StateHasChanged();
 
                 // Första analysen startas via "Aktivera Coaching"-knappen för att inte
@@ -327,7 +313,7 @@
             {
                 const string errorText = "Kunde inte bearbeta ljudinspelningen för analys.";
                 analysisError = errorText;
-                chatHistory.Add(new ChatMessage { Id = $"err-audio-{DateTime.Now.Ticks}", Sender = "ai", Text = errorText });
+                chatHistory.Add(ChatMessage.FromAi(errorText));
                 isChatLoading = false;
             }
         }
@@ -349,34 +335,6 @@
         StateHasChanged();
     }
 
-    // Samma mockdata som React-versionen: riktig pitchanalys är inte implementerad ännu
-    private void GenerateMockVocalData()
-    {
-        const int duration = 10;
-        const int numPoints = duration * 10;
-        var data = new List<VocalDataPoint>(numPoints);
-        for (var i = 0; i < numPoints; i++)
-        {
-            var time = i * 0.1;
-            var pitch = 100 + random.NextDouble() * 100 + Math.Sin(time * 0.5 + random.NextDouble() * Math.PI) * (30 + random.NextDouble() * 20);
-            var intensity = Math.Clamp(0.4 + Math.Sin(time * 0.8 + random.NextDouble() * Math.PI * 0.5) * 0.3 + (random.NextDouble() - 0.5) * 0.2, 0, 1);
-            data.Add(new VocalDataPoint(time, pitch, intensity));
-        }
-        vocalData = data;
-
-        if (!string.IsNullOrEmpty(currentScript) && data.Count > 0)
-        {
-            var words = currentScript.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
-            var scriptDuration = data[^1].Time;
-            wordMarkers = words.Select((word, index) =>
-            {
-                var estimatedWordTime = (index + 0.5) * (scriptDuration / words.Length);
-                var closest = data.MinBy(p => Math.Abs(p.Time - estimatedWordTime))!;
-                return new WordMarkerPoint(closest.Time, closest.Pitch, closest.Intensity, word);
-            }).ToList();
-        }
-    }
-
     private async Task AnalyzeRecordingAndContinueChat(string? audioData, string? mimeType, bool isFollowUp)
     {
         if (string.IsNullOrEmpty(currentScript)) return;
@@ -384,40 +342,14 @@
         chatError = null;
         StateHasChanged();
 
-        var toneDescription = currentPracticeMode.SwedishObjective();
-        var customInstructionText = string.IsNullOrEmpty(currentCustomInstructions) ? "" : $" angående ämnet: \"{currentCustomInstructions}\"";
-        var scriptHintText = string.IsNullOrEmpty(scriptHint) ? "" : $" Manustipset var: \"{scriptHint}\"";
-
-        string analysisPrompt;
-        if (!isFollowUp)
-        {
-            analysisPrompt = $"Baserat på följande övningsmanus: \"{currentScript}\"{scriptHintText}, med målsättningen att öva en {toneDescription} ton{customInstructionText}. ";
-            if (audioData is not null && mimeType is not null)
-            {
-                analysisPrompt += $"Bifogat finns en ljudinspelning **på svenska** av användarens försök (MIME-typ: {mimeType}). LYSSNA på den **svenska** ljudinspelningen och ge 2-3 konkreta, handlingsbara tips på svenska för hur användaren kan förbättra sitt framförande baserat på HUR DE LÄT. Fokusera på deras ton, intonation, tempo, pausering, och hur väl den avsedda tonen och ämnet kommunicerades vokalt **på svenska**. Var specifik och ge exempel från manuset om möjligt.";
-            }
-            else
-            {
-                analysisPrompt += "Ge en kort textbaserad analys (2-3 konkreta, handlingsbara tips) på svenska om vad användaren kan fokusera på för att förbättra sitt framförande med den angivna tonen och ämnet, baserat på texten. Fokusera på potentiella utmaningar med att leverera detta manus med den givna tonen.";
-            }
-            analysisPrompt += " Starta direkt med analysen utan en hälsningsfras. Svara på svenska.";
-        }
-        else
-        {
-            if (audioData is not null && mimeType is not null)
-            {
-                analysisPrompt = $"Här är en ny ljudinspelning **på svenska** (MIME-typ: {mimeType}) för samma manus och målsättning som vi diskuterade tidigare. Manuset är: \"{currentScript}\". Målsättningen var en {toneDescription} ton{customInstructionText}.{scriptHintText} Vår tidigare konversation och dina tidigare råd finns i chatthistoriken. LYSSNA noggrant på denna NYA inspelning. Jämför med eventuella tidigare försök och den feedback som getts. Vad har användaren förbättrat vokalt sedan senast? Vad kan de fortfarande arbeta på för att bättre uppnå målet med denna inspelning? Ge 2-3 konkreta, nya tips på svenska. Fokusera på förändringar, framsteg och fortsatta utvecklingsområden. Starta direkt med din uppföljningsanalys. Svara på svenska.";
-            }
-            else
-            {
-                analysisPrompt = $"Användaren vill ha ytterligare feedback på manuset: \"{currentScript}\" (Mål: {toneDescription} ton{customInstructionText}{scriptHintText}). Vår tidigare konversation finns i chatthistoriken. Ge ytterligare 2-3 konkreta tips baserat på vår tidigare diskussion och vad användaren kan fokusera på härnäst. Svara på svenska.";
-            }
-        }
+        var analysisPrompt = PromptBuilder.AnalysisPrompt(
+            currentScript, scriptHint, currentPracticeMode, currentCustomInstructions,
+            audioData is not null ? mimeType : null, isFollowUp);
 
         try
         {
             var aiResponseText = await Gemini.ChatAsync(chatHistory, analysisPrompt, audioData, mimeType);
-            chatHistory.Add(new ChatMessage { Id = $"ai-{DateTime.Now.Ticks}", Sender = "ai", Text = aiResponseText });
+            chatHistory.Add(ChatMessage.FromAi(aiResponseText));
             if (!isFollowUp)
             {
                 hasChatBeenInitiated = true;
@@ -427,7 +359,7 @@
         {
             const string errorMsg = "Kunde inte få analys från coachen just nu. Försök igen.";
             chatError = errorMsg;
-            chatHistory.Add(new ChatMessage { Id = $"err-{DateTime.Now.Ticks}", Sender = "ai", Text = errorMsg });
+            chatHistory.Add(ChatMessage.FromAi(errorMsg));
         }
         isChatLoading = false;
     }
@@ -436,7 +368,7 @@
     {
         if (string.IsNullOrWhiteSpace(messageText)) return;
 
-        chatHistory.Add(new ChatMessage { Id = $"user-{DateTime.Now.Ticks}", Sender = "user", Text = messageText });
+        chatHistory.Add(ChatMessage.FromUser(messageText));
         isChatLoading = true;
         chatError = null;
         StateHasChanged();
@@ -444,13 +376,13 @@
         try
         {
             var aiResponseText = await Gemini.ChatAsync(chatHistory, messageText);
-            chatHistory.Add(new ChatMessage { Id = $"ai-{DateTime.Now.Ticks}", Sender = "ai", Text = aiResponseText });
+            chatHistory.Add(ChatMessage.FromAi(aiResponseText));
         }
         catch (Exception)
         {
             const string errorMsg = "Kunde inte få svar från coachen just nu. Försök igen.";
             chatError = errorMsg;
-            chatHistory.Add(new ChatMessage { Id = $"err-{DateTime.Now.Ticks}", Sender = "ai", Text = errorMsg });
+            chatHistory.Add(ChatMessage.FromAi(errorMsg));
         }
         isChatLoading = false;
     }

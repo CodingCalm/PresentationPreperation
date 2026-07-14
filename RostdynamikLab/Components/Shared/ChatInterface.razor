@@ -4,26 +4,19 @@
     <div class="flex-grow overflow-y-auto mb-4 pr-2 space-y-3" @ref="messagesContainer">
         @foreach (var msg in Messages)
         {
-            <div class="flex items-end max-w-[85%] @(msg.Sender == "user" ? "ml-auto justify-end" : "mr-auto justify-start")">
-                <div class="p-3 rounded-xl shadow @(msg.Sender == "user" ? "bg-blue-600 text-white rounded-br-none" : "bg-gray-600 text-gray-200 rounded-bl-none")">
+            <div class="flex items-end max-w-[85%] @(msg.IsUser ? "ml-auto justify-end" : "mr-auto justify-start")">
+                <div class="p-3 rounded-xl shadow @(msg.IsUser ? "bg-blue-600 text-white rounded-br-none" : "bg-gray-600 text-gray-200 rounded-bl-none")">
                     <div class="flex items-center mb-1">
-                        @if (msg.Sender == "ai")
-                        {
-                            <i class="fas fa-robot mr-2 text-purple-300"></i>
-                        }
-                        else
-                        {
-                            <i class="fas fa-user mr-2 text-blue-300"></i>
-                        }
+                        <i class="@(msg.IsUser ? "fas fa-user mr-2 text-blue-300" : "fas fa-robot mr-2 text-purple-300")"></i>
                         <span class="text-xs opacity-75">
-                            @(msg.Sender == "ai" ? "AI Coach" : "Du") - @msg.Timestamp.ToString("HH:mm")
+                            @(msg.IsUser ? "Du" : "AI Coach") - @msg.Timestamp.ToString("HH:mm")
                         </span>
                     </div>
                     <p class="text-sm whitespace-pre-wrap">@msg.Text</p>
                 </div>
             </div>
         }
-        @if (IsLoading && Messages.Count > 0 && Messages[^1].Sender == "user")
+        @if (IsLoading && Messages.Count > 0 && Messages[^1].IsUser)
         {
             <div class="flex justify-start mr-auto">
                 <div class="p-3 rounded-xl shadow bg-gray-600 text-gray-200 rounded-bl-none animate-pulse">
