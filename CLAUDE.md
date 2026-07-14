@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Röstdynamik Lab — AI-driven röst-/presentationsträning. Blazor Web App på .NET 10 med Interactive Server-rendering, i mappen `RostdynamikLab/`. All UI-text och kommunikation med användaren är på svenska. Projektet var ursprungligen en React/Vite-app (finns i git-historiken före commit 067f9d8).
 
+**Övergripande mål: projektet är användarens övningsyta för att lära sig DevOps och klara AZ-400-provet** (Microsoft Azure DevOps Engineer Expert). Appen är medlet — målet är snygga pipelines, gates, miljöer, approvals och annan release-hantering runt den. När DevOps-arbete görs: förklara koncepten (användaren ska lära sig, inte bara få det gjort) och koppla gärna val till vad AZ-400 täcker.
+
 ## Kommandon
 
 Allt körs från `RostdynamikLab/`:
