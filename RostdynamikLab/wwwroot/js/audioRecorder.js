@@ -31,14 +31,17 @@ window.audioRecorder = (function () {
             };
 
             mediaRecorder.onstop = async () => {
-                const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
+                // Använd formatet som faktiskt spelades in (Chrome: webm, Firefox: ogg) —
+                // en felaktig typ får uppspelningen att vägra med utgråade kontroller
+                const recordedType = mediaRecorder.mimeType || "audio/webm";
+                const audioBlob = new Blob(audioChunks, { type: recordedType });
                 stream.getTracks().forEach((track) => track.stop());
 
                 revokePlaybackUrl();
                 playbackUrl = URL.createObjectURL(audioBlob);
 
                 const base64 = await blobToBase64(audioBlob);
-                const mimeType = audioBlob.type.split(";")[0];
+                const mimeType = recordedType.split(";")[0];
 
                 if (dotNetRef) {
                     await dotNetRef.invokeMethodAsync("OnRecordingComplete", base64, mimeType, playbackUrl);
