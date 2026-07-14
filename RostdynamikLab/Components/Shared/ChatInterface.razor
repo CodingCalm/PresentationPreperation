@@ -1,0 +1,107 @@
+@inject IJSRuntime JS
+
+<div class="flex flex-col h-[400px] md:h-[calc(100%-2rem)] bg-gray-750 p-4 rounded-lg shadow-inner w-full">
+    <div class="flex-grow overflow-y-auto mb-4 pr-2 space-y-3" @ref="messagesContainer">
+        @foreach (var msg in Messages)
+        {
+            <div class="flex items-end max-w-[85%] @(msg.Sender == "user" ? "ml-auto justify-end" : "mr-auto justify-start")">
+                <div class="p-3 rounded-xl shadow @(msg.Sender == "user" ? "bg-blue-600 text-white rounded-br-none" : "bg-gray-600 text-gray-200 rounded-bl-none")">
+                    <div class="flex items-center mb-1">
+                        @if (msg.Sender == "ai")
+                        {
+                            <i class="fas fa-robot mr-2 text-purple-300"></i>
+                        }
+                        else
+                        {
+                            <i class="fas fa-user mr-2 text-blue-300"></i>
+                        }
+                        <span class="text-xs opacity-75">
+                            @(msg.Sender == "ai" ? "AI Coach" : "Du") - @msg.Timestamp.ToString("HH:mm")
+                        </span>
+                    </div>
+                    <p class="text-sm whitespace-pre-wrap">@msg.Text</p>
+                </div>
+            </div>
+        }
+        @if (IsLoading && Messages.Count > 0 && Messages[^1].Sender == "user")
+        {
+            <div class="flex justify-start mr-auto">
+                <div class="p-3 rounded-xl shadow bg-gray-600 text-gray-200 rounded-bl-none animate-pulse">
+                    <i class="fas fa-robot mr-2 text-purple-300"></i> AI Coach tänker...
+                </div>
+            </div>
+        }
+    </div>
+
+    @if (ShowFollowUpRecordButton)
+    {
+        <div class="mb-3 border-t border-gray-600 pt-3">
+            <button @onclick="OnFollowUpRecord"
+                    disabled="@(IsActuallyRecording || IsChatProcessingAudio)"
+                    class="w-full px-6 py-3 bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-semibold rounded-lg shadow-md flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed transition-colors duration-150">
+                <i class="fas fa-microphone-alt mr-2"></i>
+                @(IsActuallyRecording ? "Spelar in..." : (IsChatProcessingAudio ? "AI bearbetar..." : "Gör ny inspelning"))
+            </button>
+        </div>
+    }
+
+    @if (Error is not null)
+    {
+        <p class="text-red-400 text-sm mb-2 text-center">@Error</p>
+    }
+
+    <form @onsubmit="HandleSubmit" @onsubmit:preventDefault class="flex items-center border-t border-gray-600 pt-3">
+        <input type="text"
+               @bind="inputText"
+               @bind:event="oninput"
+               placeholder="@(IsLoading ? "Vänta på svar..." : "Skriv ditt meddelande...")"
+               class="flex-grow p-3 bg-gray-600 border border-gray-500 rounded-l-md focus:ring-1 focus:ring-purple-500 focus:border-purple-500 placeholder-gray-400 text-gray-100 disabled:opacity-60"
+               disabled="@IsLoading"
+               aria-label="Chattmeddelande" />
+        <button type="submit"
+                disabled="@(IsLoading || string.IsNullOrWhiteSpace(inputText))"
+                class="p-3 bg-purple-600 hover:bg-purple-700 text-white rounded-r-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150 flex items-center justify-center h-[3.25rem] w-[3.25rem]"
+                aria-label="Skicka meddelande">
+            @if (IsLoading)
+            {
+                <i class="fas fa-circle-notch animate-spin"></i>
+            }
+            else
+            {
+                <i class="fas fa-paper-plane"></i>
+            }
+        </button>
+    </form>
+</div>
+
+@code {
+    [Parameter] public List<ChatMessage> Messages { get; set; } = [];
+    [Parameter] public EventCallback<string> OnSendMessage { get; set; }
+    [Parameter] public bool IsLoading { get; set; }
+    [Parameter] public string? Error { get; set; }
+    [Parameter] public bool ShowFollowUpRecordButton { get; set; }
+    [Parameter] public bool IsActuallyRecording { get; set; }
+    [Parameter] public bool IsChatProcessingAudio { get; set; }
+    [Parameter] public EventCallback OnFollowUpRecord { get; set; }
+
+    private string inputText = "";
+    private ElementReference messagesContainer;
+    private int lastMessageCount;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (Messages.Count != lastMessageCount)
+        {
+            lastMessageCount = Messages.Count;
+            await JS.InvokeVoidAsync("audioRecorder.scrollToBottom", messagesContainer);
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        var text = inputText.Trim();
+        if (text.Length == 0 || IsLoading) return;
+        inputText = "";
+        await OnSendMessage.InvokeAsync(text);
+    }
+}

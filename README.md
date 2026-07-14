@@ -1,20 +1,25 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# Röstdynamik Lab
 
-# Run and deploy your AI Studio app
+AI-driven träning av röst och presentation — öva olika taltoner (självsäker, frågande, entusiastisk, lugn, bestämd), spela in dig själv och få feedback från en AI-coach. Byggd med Blazor Web App på .NET 10.
 
-This contains everything you need to run your app locally.
+## Kör lokalt
 
-View your app in AI Studio: https://ai.studio/apps/2af25235-fb6b-4817-9402-d55bf798ccd1
+**Förkrav:** [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
 
-## Run Locally
+1. Sätt din Gemini API-nyckel (engångsinställning):
+   ```powershell
+   cd RostdynamikLab
+   dotnet user-secrets set "GEMINI_API_KEY" "din-nyckel"
+   ```
+   Utan nyckel fungerar appen ändå, men med inbyggda övningsmanus i stället för AI-genererade.
 
-**Prerequisites:**  Node.js
+2. Starta appen:
+   ```powershell
+   dotnet run
+   ```
 
+3. Öppna http://localhost:5000 och tillåt mikrofonåtkomst.
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+AI-anrop görs bara när du aktivt klickar på "Generera Nytt Manus" eller "Aktivera Coaching" — inga tokens förbrukas i bakgrunden.
+
+> Historik: projektet var ursprungligen en React/Vite-app genererad i Google AI Studio; den porterades till Blazor 2026-07-14. React-versionen finns kvar i git-historiken före den porteringscommitten.

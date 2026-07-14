@@ -1,0 +1,73 @@
+<form @onsubmit="HandleSubmit" @onsubmit:preventDefault class="space-y-4">
+    <div>
+        <label class="block text-sm font-medium text-gray-300 mb-1">
+            Välj ton att öva på:
+        </label>
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            @foreach (var mode in Enum.GetValues<PracticeMode>())
+            {
+                <button type="button"
+                        @onclick="() => selectedMode = mode"
+                        class="@ModeButtonClass(mode)">
+                    <i class="@ModeIcon(mode) mr-2"></i>
+                    @mode.DisplayName()
+                </button>
+            }
+        </div>
+    </div>
+
+    <div>
+        <label for="customInstructions" class="block text-sm font-medium text-gray-300 mb-1">
+            Beskriv vad ditt manus ska handla om (lämna tomt för generellt manus):
+        </label>
+        <input type="text"
+               id="customInstructions"
+               @bind="customInstructions"
+               class="w-full p-2 bg-gray-700 border border-gray-600 rounded-md focus:ring-blue-500 focus:border-blue-500 placeholder-gray-400 text-gray-100"
+               placeholder="t.ex. en presentation om kvartalsrapporten"
+               disabled="@IsLoading" />
+    </div>
+
+    <button type="submit"
+            disabled="@IsLoading"
+            class="w-full flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150 ease-in-out">
+        @if (IsLoading)
+        {
+            <i class="fas fa-circle-notch animate-spin mr-3"></i>
+            <span>Genererar...</span>
+        }
+        else
+        {
+            <span>Generera Nytt Manus</span>
+        }
+    </button>
+</form>
+
+@code {
+    [Parameter] public EventCallback<(PracticeMode Mode, string CustomInstructions)> OnGenerateScript { get; set; }
+    [Parameter] public bool IsLoading { get; set; }
+
+    private PracticeMode selectedMode = PracticeMode.Sjalvsaker;
+    private string customInstructions = "";
+
+    private async Task HandleSubmit()
+    {
+        await OnGenerateScript.InvokeAsync((selectedMode, customInstructions));
+    }
+
+    private string ModeButtonClass(PracticeMode mode) =>
+        "flex items-center justify-center p-3 rounded-md text-sm font-medium transition-all duration-150 ease-in-out " +
+        (selectedMode == mode
+            ? "bg-blue-600 text-white shadow-lg ring-2 ring-blue-400"
+            : "bg-gray-600 hover:bg-gray-500 text-gray-200");
+
+    private static string ModeIcon(PracticeMode mode) => mode switch
+    {
+        PracticeMode.Sjalvsaker => "fas fa-bullhorn",
+        PracticeMode.Fragande => "fas fa-question-circle",
+        PracticeMode.Entusiastisk => "fas fa-hands",
+        PracticeMode.Lugn => "fas fa-comment-dots",
+        PracticeMode.Bestamd => "fas fa-lightbulb",
+        _ => "fas fa-lightbulb"
+    };
+}

@@ -1,0 +1,125 @@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<div class="space-y-4">
+    <div class="flex items-center justify-center space-x-3">
+        @if (ShowPrimaryStartButton && !isRecording)
+        {
+            <button @onclick="StartRecordingAsync"
+                    disabled="@(Disabled || isRecording)"
+                    class="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg shadow-md flex items-center disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150">
+                <i class="fas fa-microphone mr-2"></i> Starta Inspelning
+            </button>
+        }
+        @if (isRecording)
+        {
+            <button @onclick="StopRecordingAsync"
+                    class="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-md flex items-center disabled:opacity-50 transition-colors duration-150">
+                <i class="fas fa-stop-circle mr-2"></i> Stoppa Inspelning
+            </button>
+        }
+    </div>
+
+    @if (error is not null)
+    {
+        <p class="text-red-400 text-sm text-center">@error</p>
+    }
+
+    @if (audioDataUrl is not null && !isRecording)
+    {
+        <div class="mt-4 p-3 bg-gray-700 rounded-lg shadow flex flex-col sm:flex-row items-center justify-between gap-3">
+            <audio controls src="@audioDataUrl" class="w-full sm:w-auto flex-grow">
+                Din webbläsare stöder inte ljudelementet.
+            </audio>
+            <button @onclick="ResetRecordingAsync"
+                    class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-md flex items-center text-sm transition-colors duration-150"
+                    title="Rensa inspelning och analys">
+                <i class="fas fa-trash mr-1 sm:mr-2"></i> Rensa
+            </button>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public EventCallback<(string Base64, string MimeType)?> OnAudioRecorded { get; set; }
+    [Parameter] public EventCallback<bool> OnRecordingStateChange { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public bool ShowPrimaryStartButton { get; set; } = true;
+
+    private bool isRecording;
+    private string? error;
+    private string? audioDataUrl;
+    private DotNetObjectReference<AudioRecorder>? selfRef;
+
+    public async Task TriggerStartRecording()
+    {
+        await StartRecordingAsync();
+    }
+
+    private async Task StartRecordingAsync()
+    {
+        error = null;
+        audioDataUrl = null;
+        await OnAudioRecorded.InvokeAsync(null);
+
+        selfRef ??= DotNetObjectReference.Create(this);
+        var result = await JS.InvokeAsync<StartResult>("audioRecorder.start", selfRef);
+
+        if (result.Ok)
+        {
+            isRecording = true;
+            await OnRecordingStateChange.InvokeAsync(true);
+        }
+        else
+        {
+            error = result.Error ?? "Kunde inte starta inspelningen.";
+            isRecording = false;
+            await OnRecordingStateChange.InvokeAsync(false);
+        }
+        StateHasChanged();
+    }
+
+    private async Task StopRecordingAsync()
+    {
+        await JS.InvokeVoidAsync("audioRecorder.stop");
+    }
+
+    [JSInvokable]
+    public async Task OnRecordingComplete(string base64, string mimeType)
+    {
+        isRecording = false;
+        audioDataUrl = $"data:{mimeType};base64,{base64}";
+        await OnRecordingStateChange.InvokeAsync(false);
+        await OnAudioRecorded.InvokeAsync((base64, mimeType));
+        StateHasChanged();
+    }
+
+    private async Task ResetRecordingAsync()
+    {
+        await JS.InvokeVoidAsync("audioRecorder.reset");
+        audioDataUrl = null;
+        error = null;
+        isRecording = false;
+        await OnRecordingStateChange.InvokeAsync(false);
+        await OnAudioRecorded.InvokeAsync(null);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        // selfRef är null om inspelning aldrig startats (t.ex. vid prerendering) — då finns inget att städa
+        if (selfRef is not null)
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("audioRecorder.reset");
+            }
+            catch (Exception ex) when (ex is JSDisconnectedException or InvalidOperationException)
+            {
+                // Kretsen är redan stängd; inget att städa på klientsidan
+            }
+            selfRef.Dispose();
+        }
+    }
+
+    private record StartResult(bool Ok, string? Error);
+}

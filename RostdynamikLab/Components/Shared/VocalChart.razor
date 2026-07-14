@@ -1,0 +1,305 @@
+@if (Data is null || Data.Count == 0)
+{
+    <div class="p-4 text-center text-gray-400 bg-gray-800 rounded-lg min-h-[200px] flex items-center justify-center border border-gray-700">
+        Spela in din röst för att se @(Kind == ChartKind.Pitch ? "tonhöjdsvisualisering" : "intensitetsvisualisering").
+    </div>
+}
+else
+{
+    <div class="p-4 bg-gray-850 border border-gray-700 rounded-lg shadow-xl h-64 md:h-80 w-full relative transition-all">
+        <div class="flex items-center justify-center gap-4 text-[11px] text-gray-200 mb-1">
+            <span class="flex items-center gap-1.5">
+                <span class="inline-block w-4 h-0.5" style="background:@LineColor"></span>
+                @(Kind == ChartKind.Pitch ? "Röstens Tonhöjd (Hz)" : "Röstens Intensitet (%)")
+            </span>
+            @if (WordMarkers is { Count: > 0 })
+            {
+                <span class="flex items-center gap-1.5">
+                    <span class="inline-block w-2 h-2 rounded-full" style="background:@HighColor"></span>
+                    @(Kind == ChartKind.Pitch ? "Ord (↗ Hög, ↘ Låg)" : "Ord (🔊 Hög, 🔈 Låg)")
+                </span>
+            }
+        </div>
+        <svg viewBox="0 0 @W @H" preserveAspectRatio="none" width="100%" style="height:calc(100% - 1.25rem)"
+             @onmouseleave="HandleMouseLeave">
+
+            @* Rutnät *@
+            @foreach (var ty in YTicks)
+            {
+                <line x1="@Px(MarginLeft)" y1="@Px(YScale(ty))" x2="@Px(W - MarginRight)" y2="@Px(YScale(ty))"
+                      stroke="#374151" stroke-dasharray="3 3" stroke-width="1" />
+            }
+            @foreach (var tx in XTicks)
+            {
+                <line x1="@Px(XScale(tx))" y1="@Px(MarginTop)" x2="@Px(XScale(tx))" y2="@Px(H - MarginBottom)"
+                      stroke="#374151" stroke-dasharray="3 3" stroke-width="1" />
+            }
+
+            @* Axlar med etiketter *@
+            @foreach (var ty in YTicks)
+            {
+                <g><text x="@Px(MarginLeft - 8)" y="@Px(YScale(ty) + 4)" fill="#9CA3AF" font-size="11" text-anchor="end">@FormatY(ty)</text></g>
+            }
+            @foreach (var tx in XTicks)
+            {
+                <g><text x="@Px(XScale(tx))" y="@Px(H - MarginBottom + 16)" fill="#9CA3AF" font-size="11" text-anchor="middle">@(tx.ToString("0.0"))s</text></g>
+            }
+            <text x="@Px((MarginLeft + W - MarginRight) / 2)" y="@Px(H - 4)" fill="#9CA3AF" font-size="11" text-anchor="middle">Tid (sekunder)</text>
+            <text x="12" y="@Px((MarginTop + H - MarginBottom) / 2)" fill="#9CA3AF" font-size="11" text-anchor="middle"
+                  transform="rotate(-90 12 @Px((MarginTop + H - MarginBottom) / 2))">@YAxisLabel</text>
+
+            @* Markeringslinje för valt ord *@
+            @if (SelectedWord is not null)
+            {
+                <line x1="@Px(XScale(SelectedWord.Time))" y1="@Px(MarginTop)"
+                      x2="@Px(XScale(SelectedWord.Time))" y2="@Px(H - MarginBottom)"
+                      stroke="#FBBF24" stroke-width="1.5" stroke-dasharray="4 4" />
+            }
+
+            @* Datakurvan *@
+            <path d="@LinePath" fill="none" stroke="@LineColor" stroke-width="3" />
+
+            @* Osynliga hover-band: närmaste ord väljs när muspekaren rör sig över grafen *@
+            @if (WordMarkers is { Count: > 0 })
+            {
+                foreach (var (marker, x0, x1) in HoverBands)
+                {
+                    var m = marker;
+                    <rect x="@Px(x0)" y="@Px(MarginTop)" width="@Px(x1 - x0)" height="@Px(H - MarginTop - MarginBottom)"
+                          fill="transparent" style="cursor:pointer"
+                          @onmouseover="() => OnSelectWord.InvokeAsync(m)"
+                          @onclick="() => OnSelectWord.InvokeAsync(m)" />
+                }
+            }
+
+            @* Ordmarkörer *@
+            @if (WordMarkers is { Count: > 0 })
+            {
+                foreach (var (marker, index) in WordMarkers.Select((m, i) => (m, i)))
+                {
+                    var val = Value(marker);
+                    var cx = XScale(marker.Time);
+                    var cy = YScale(val);
+                    var isSelected = IsSelected(marker);
+                    var ratio = MarkerRange > 0 ? (val - MarkerMin) / MarkerRange : 0.5;
+                    var isHigh = ratio >= 0.70;
+                    var isLow = ratio <= 0.30;
+                    var yOffset = isSelected ? 32.0 : (index % 2 == 0 ? 16.0 : 28.0);
+
+                    var themeColor = isSelected ? "#FBBF24" : (isHigh ? HighColor : (isLow ? LowColor : "#FBBF24"));
+                    var textColor = isSelected ? "#FBBF24" : (isHigh ? HighTextColor : (isLow ? LowTextColor : "#E2E8F0"));
+                    var statusText = isHigh ? HighStatus : (isLow ? LowStatus : "");
+
+                    <g style="cursor:pointer" @onclick="() => ToggleWord(marker)" @onmouseover="() => OnSelectWord.InvokeAsync(marker)">
+                        <line x1="@Px(cx)" y1="@Px(cy)" x2="@Px(cx)" y2="@Px(cy - yOffset + 5)"
+                              stroke="@(isSelected ? "#FBBF24" : "#4B5563")"
+                              stroke-width="@(isSelected ? "1.5" : "1")"
+                              stroke-dasharray="@(isSelected ? "none" : "2 2")" />
+
+                        @if (isSelected)
+                        {
+                            <circle cx="@Px(cx)" cy="@Px(cy)" r="12" fill="@themeColor" fill-opacity="0.2"
+                                    stroke="@themeColor" stroke-width="1" stroke-dasharray="2 2" />
+                        }
+
+                        <circle cx="@Px(cx)" cy="@Px(cy)" r="@(isSelected ? "6" : "4.5")"
+                                fill="@themeColor" stroke="#111827" stroke-width="1.5" />
+
+                        <text x="@Px(cx)" y="@Px(cy - yOffset)"
+                              fill="@textColor"
+                              font-size="@(isSelected ? "12" : "10.5")"
+                              font-weight="@(isSelected || isHigh ? "800" : "600")"
+                              text-anchor="middle"
+                              stroke="#111827" stroke-width="3" paint-order="stroke">@(marker.Word)@statusText</text>
+                    </g>
+                }
+            }
+
+            @* Tooltip för valt ord *@
+            @if (SelectedWord is not null)
+            {
+                var tipX = Math.Clamp(XScale(SelectedWord.Time), MarginLeft + 70, W - MarginRight - 70);
+                <g pointer-events="none">
+                    <rect x="@Px(tipX - 70)" y="@Px(MarginTop + 2)" width="140" height="34" rx="6"
+                          fill="rgba(17, 24, 39, 0.95)" stroke="#4B5563" />
+                    <text x="@Px(tipX)" y="@Px(MarginTop + 16)" fill="@TooltipLabelColor" font-size="11" font-weight="bold" text-anchor="middle">
+                        Tid: @(SelectedWord.Time.ToString("0.00"))s (@SelectedWord.Word)
+                    </text>
+                    <text x="@Px(tipX)" y="@Px(MarginTop + 30)" fill="#F3F4F6" font-size="11" text-anchor="middle">
+                        @TooltipValueText
+                    </text>
+                </g>
+            }
+        </svg>
+    </div>
+}
+
+@code {
+    public enum ChartKind { Pitch, Intensity }
+
+    [Parameter] public ChartKind Kind { get; set; }
+    [Parameter] public List<VocalDataPoint>? Data { get; set; }
+    [Parameter] public List<WordMarkerPoint>? WordMarkers { get; set; }
+    [Parameter] public WordMarkerPoint? SelectedWord { get; set; }
+    [Parameter] public EventCallback<WordMarkerPoint?> OnSelectWord { get; set; }
+
+    private const double W = 800;
+    private const double H = 300;
+    private const double MarginLeft = 60;
+    private const double MarginRight = 20;
+    private const double MarginTop = 15;
+    private const double MarginBottom = 40;
+
+    private string LineColor => Kind == ChartKind.Pitch ? "#60A5FA" : "#34D399";
+    private string HighColor => Kind == ChartKind.Pitch ? "#EF4444" : "#10B981";
+    private string LowColor => Kind == ChartKind.Pitch ? "#3B82F6" : "#6B7280";
+    private string HighTextColor => Kind == ChartKind.Pitch ? "#FCA5A5" : "#34D399";
+    private string LowTextColor => Kind == ChartKind.Pitch ? "#93C5FD" : "#9CA3AF";
+    private string HighStatus => Kind == ChartKind.Pitch ? " ↗" : " 🔊";
+    private string LowStatus => Kind == ChartKind.Pitch ? " ↘" : " 🔈";
+    private string YAxisLabel => Kind == ChartKind.Pitch ? "Tonhöjd (Hz)" : "Röststyrka (%)";
+    private string TooltipLabelColor => Kind == ChartKind.Pitch ? "#60A5FA" : "#10B981";
+
+    private double Value(VocalDataPoint p) => Kind == ChartKind.Pitch ? p.Pitch : p.Intensity;
+    private double Value(WordMarkerPoint p) => Kind == ChartKind.Pitch ? p.Pitch : p.Intensity;
+
+    private double TimeMin => Data!.Min(p => p.Time);
+    private double TimeMax => Data!.Max(p => p.Time);
+
+    private double YMin
+    {
+        get
+        {
+            if (Kind == ChartKind.Intensity) return 0;
+            var min = Data!.Min(p => p.Pitch);
+            return min > 0 ? Math.Max(0, Math.Floor(min / 20) * 20 - 20) : 0;
+        }
+    }
+
+    private double YMax
+    {
+        get
+        {
+            if (Kind == ChartKind.Intensity) return 1;
+            var max = Data!.Max(p => p.Pitch);
+            return Math.Ceiling(max / 20) * 20 + 20;
+        }
+    }
+
+    private double MarkerMin => WordMarkers is { Count: > 0 } ? WordMarkers.Min(Value) : YMin;
+    private double MarkerMax => WordMarkers is { Count: > 0 } ? WordMarkers.Max(Value) : YMax;
+    private double MarkerRange => MarkerMax - MarkerMin;
+
+    private double XScale(double time)
+    {
+        var range = TimeMax - TimeMin;
+        if (range <= 0) return MarginLeft;
+        return MarginLeft + (time - TimeMin) / range * (W - MarginLeft - MarginRight);
+    }
+
+    private double YScale(double value)
+    {
+        var range = YMax - YMin;
+        if (range <= 0) return H - MarginBottom;
+        return H - MarginBottom - (value - YMin) / range * (H - MarginTop - MarginBottom);
+    }
+
+    private IEnumerable<double> YTicks
+    {
+        get
+        {
+            const int count = 5;
+            for (var i = 0; i <= count; i++)
+            {
+                yield return YMin + (YMax - YMin) * i / count;
+            }
+        }
+    }
+
+    private IEnumerable<double> XTicks
+    {
+        get
+        {
+            const int count = 6;
+            for (var i = 0; i <= count; i++)
+            {
+                yield return TimeMin + (TimeMax - TimeMin) * i / count;
+            }
+        }
+    }
+
+    private string FormatY(double v) =>
+        Kind == ChartKind.Pitch ? v.ToString("0") : $"{v * 100:0}%";
+
+    private string TooltipValueText =>
+        Kind == ChartKind.Pitch
+            ? $"Tonhöjd: {SelectedWord!.Pitch:0} Hz"
+            : $"Intensitet: {SelectedWord!.Intensity * 100:0}%";
+
+    // Utjämnad kurva (Catmull-Rom till kubisk bezier), motsvarar Recharts "monotone"
+    private string LinePath
+    {
+        get
+        {
+            var pts = Data!.OrderBy(p => p.Time)
+                .Select(p => (X: XScale(p.Time), Y: YScale(Value(p))))
+                .ToList();
+            if (pts.Count == 0) return "";
+            if (pts.Count == 1) return $"M {Px(pts[0].X)} {Px(pts[0].Y)}";
+
+            var sb = new System.Text.StringBuilder();
+            sb.Append($"M {Px(pts[0].X)} {Px(pts[0].Y)}");
+            for (var i = 0; i < pts.Count - 1; i++)
+            {
+                var p0 = pts[Math.Max(0, i - 1)];
+                var p1 = pts[i];
+                var p2 = pts[i + 1];
+                var p3 = pts[Math.Min(pts.Count - 1, i + 2)];
+
+                var c1x = p1.X + (p2.X - p0.X) / 6.0;
+                var c1y = p1.Y + (p2.Y - p0.Y) / 6.0;
+                var c2x = p2.X - (p3.X - p1.X) / 6.0;
+                var c2y = p2.Y - (p3.Y - p1.Y) / 6.0;
+
+                sb.Append($" C {Px(c1x)} {Px(c1y)}, {Px(c2x)} {Px(c2y)}, {Px(p2.X)} {Px(p2.Y)}");
+            }
+            return sb.ToString();
+        }
+    }
+
+    // Vertikala band mellan ordens mittpunkter, så att hover väljer närmaste ord
+    private IEnumerable<(WordMarkerPoint Marker, double X0, double X1)> HoverBands
+    {
+        get
+        {
+            var markers = WordMarkers!.OrderBy(m => m.Time).ToList();
+            for (var i = 0; i < markers.Count; i++)
+            {
+                var x = XScale(markers[i].Time);
+                var x0 = i == 0 ? MarginLeft : (x + XScale(markers[i - 1].Time)) / 2;
+                var x1 = i == markers.Count - 1 ? W - MarginRight : (x + XScale(markers[i + 1].Time)) / 2;
+                yield return (markers[i], x0, x1);
+            }
+        }
+    }
+
+    private bool IsSelected(WordMarkerPoint marker) =>
+        SelectedWord is not null &&
+        SelectedWord.Word == marker.Word &&
+        Math.Abs(SelectedWord.Time - marker.Time) < 0.05;
+
+    private async Task ToggleWord(WordMarkerPoint marker)
+    {
+        await OnSelectWord.InvokeAsync(IsSelected(marker) ? null : marker);
+    }
+
+    private async Task HandleMouseLeave()
+    {
+        if (SelectedWord is not null)
+        {
+            await OnSelectWord.InvokeAsync(null);
+        }
+    }
+
+    private static string Px(double v) => v.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+}
