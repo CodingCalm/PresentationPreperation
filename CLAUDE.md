@@ -37,6 +37,20 @@ Ingen separat API-server — komponenterna anropar `Services/GeminiService.cs` d
 - `Components/Shared/AudioRecorder.razor` + `wwwroot/js/audioRecorder.js` — mikrofoninspelning via MediaRecorder och JS interop; ljudet skickas som base64 till servern (SignalR-maxstorlek är höjd i Program.cs för detta).
 - Styling: Tailwind och Font Awesome via CDN i `Components/App.razor`, inga npm-beroenden.
 
+## Branchstrategi: GitHub Flow med auto-merge
+
+Committa aldrig direkt på `main` — allt går via kortlivade feature-brancher och pull requests:
+
+```powershell
+git checkout -b feature/kort-beskrivning
+# ...jobba, committa...
+git push -u origin feature/kort-beskrivning
+gh pr create --fill
+gh pr merge --auto --squash    # mergar själv när CI är grön
+```
+
+CI-workflowen (`.github/workflows/ci.yml`) bygger och kör testerna på varje PR; branch protection på `main` kräver att checken `build-and-test` är grön innan merge. Squash-merge används så att main-historiken blir en commit per ändring. Håll brancherna korta (timmar, inte veckor).
+
 ## Viktiga regler
 
 - **Inga automatiska AI-anrop.** Gemini får bara anropas efter uttrycklig knapptryckning ("Generera Nytt Manus", "Aktivera Coaching", chattmeddelanden, uppföljningsinspelning från chatten). Startmanus laddas lokalt via `GeminiService.GetStarterScript`. Användaren har begränsad kvot — flagga alltid tokenkostnaden om ett nytt AI-anrop föreslås.
