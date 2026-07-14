@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Hämta koden
+        uses: actions/checkout@v4
+
+      - name: Installera .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Bygg (Release)
+        run: dotnet build RostdynamikLab.slnx --configuration Release
+
+      - name: Kör enhetstester
+        run: dotnet test RostdynamikLab.slnx --configuration Release --no-build
