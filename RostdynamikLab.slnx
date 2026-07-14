@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="RostdynamikLab.Tests/RostdynamikLab.Tests.csproj" />
+  <Project Path="RostdynamikLab/RostdynamikLab.csproj" />
+</Solution>

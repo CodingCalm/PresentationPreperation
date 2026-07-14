@@ -10,15 +10,23 @@ Röstdynamik Lab — AI-driven röst-/presentationsträning. Blazor Web App på 
 
 ## Kommandon
 
-Allt körs från `RostdynamikLab/`:
+Från repo-roten (solution-filen är i .NET 10:s `.slnx`-format):
 
 ```powershell
-dotnet build          # bygg
+dotnet build RostdynamikLab.slnx    # bygg allt
+dotnet test RostdynamikLab.slnx     # kör enhetstesterna (xunit i RostdynamikLab.Tests/)
+dotnet test --filter "FullyQualifiedName~PromptBuilder"   # enskild testklass
+```
+
+Från `RostdynamikLab/`:
+
+```powershell
+dotnet watch          # utveckling med hot reload (föredra denna)
 dotnet run            # starta på http://localhost:5000 (launchSettings)
 dotnet user-secrets set "GEMINI_API_KEY" "nyckel"   # API-nyckel (engångs)
 ```
 
-Inga tester finns ännu. Om appen redan kör låser den exe-filen och `dotnet build` misslyckas med MSB3021 — kompilera då mot separat output: `dotnet build -o bin/check` (och ta bort mappen efteråt).
+Om appen redan kör låser den exe-filen och `dotnet build` misslyckas med MSB3021 — kompilera då mot separat output: `dotnet build -o bin/check` (och ta bort mappen efteråt).
 
 ## Arkitektur
 
