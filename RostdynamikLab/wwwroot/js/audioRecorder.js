@@ -3,6 +3,16 @@ window.audioRecorder = (function () {
     let mediaRecorder = null;
     let audioChunks = [];
     let dotNetRef = null;
+    // Uppspelnings-URL:en pekar på ljudet i webbläsarens minne (blob:), så att
+    // uppspelning fungerar utan att ljudet behöver skickas tillbaka från servern.
+    let playbackUrl = null;
+
+    function revokePlaybackUrl() {
+        if (playbackUrl) {
+            URL.revokeObjectURL(playbackUrl);
+            playbackUrl = null;
+        }
+    }
 
     async function start(dotNetReference) {
         dotNetRef = dotNetReference;
@@ -24,11 +34,14 @@ window.audioRecorder = (function () {
                 const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
                 stream.getTracks().forEach((track) => track.stop());
 
+                revokePlaybackUrl();
+                playbackUrl = URL.createObjectURL(audioBlob);
+
                 const base64 = await blobToBase64(audioBlob);
                 const mimeType = audioBlob.type.split(";")[0];
 
                 if (dotNetRef) {
-                    await dotNetRef.invokeMethodAsync("OnRecordingComplete", base64, mimeType);
+                    await dotNetRef.invokeMethodAsync("OnRecordingComplete", base64, mimeType, playbackUrl);
                 }
             };
 
@@ -59,6 +72,7 @@ window.audioRecorder = (function () {
         }
         mediaRecorder = null;
         audioChunks = [];
+        revokePlaybackUrl();
     }
 
     function blobToBase64(blob) {

@@ -85,10 +85,12 @@
     }
 
     [JSInvokable]
-    public async Task OnRecordingComplete(string base64, string mimeType)
+    public async Task OnRecordingComplete(string base64, string mimeType, string playbackUrl)
     {
         isRecording = false;
-        audioDataUrl = $"data:{mimeType};base64,{base64}";
+        // blob:-URL som pekar på ljudet i webbläsarens minne — data-URL via servern
+        // är för stor för att spelas upp tillförlitligt
+        audioDataUrl = playbackUrl;
         await OnRecordingStateChange.InvokeAsync(false);
         await OnAudioRecorded.InvokeAsync((base64, mimeType));
         StateHasChanged();

@@ -14,7 +14,8 @@
 <body class="bg-gray-900 text-white">
     <Routes @rendermode="InteractiveServer" />
     <script src="_framework/blazor.web.js"></script>
-    <script src="js/audioRecorder.js"></script>
+    @* Assets[] ger fingeravtryck i URL:en så att webbläsare aldrig kör en gammal cachad version *@
+    <script src="@Assets["js/audioRecorder.js"]"></script>
 </body>
 
 </html>
