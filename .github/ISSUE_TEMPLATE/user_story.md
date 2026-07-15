@@ -1,3 +1,11 @@
+---
+name: User Story
+about: Template for creating user stories
+title: "[Story] "
+labels: ["user story"]
+assignees: []
+---
+
 ## User Story
 
 As a [user type], I want [functionality] so that [business value].
