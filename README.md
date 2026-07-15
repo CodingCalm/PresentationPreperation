@@ -1,3 +1,4 @@
+[![Board Status](https://dev.azure.com/henriktester/67046b7b-f336-4154-b841-d296f1564202/733489d7-8ace-48ae-80b2-d7622ce3d1f1/_apis/work/boardbadge/ca667be9-0183-4068-be68-0b1b46df648a)](https://dev.azure.com/henriktester/67046b7b-f336-4154-b841-d296f1564202/_boards/board/t/733489d7-8ace-48ae-80b2-d7622ce3d1f1/Microsoft.RequirementCategory)
 # Röstdynamik Lab
 
 AI-driven träning av röst och presentation — öva olika taltoner (självsäker, frågande, entusiastisk, lugn, bestämd), spela in dig själv och få feedback från en AI-coach. Byggd med Blazor Web App på .NET 10.
