@@ -97,3 +97,4 @@ Medvetet otestat: `GeminiService`s HTTP-logik (kräver mockad `HttpClient`) och 
 3. **WCAG-luckor**: ordval i graferna är musberoende (ej tangentbord), graferna saknar textalternativ för skärmläsare, viss gråtext ligger nära kontrastgränsen.
 4. **Ingen CI/CD ännu** — pipelines är nästa steg (se CLAUDE.md: projektets mål är DevOps-lärande inför AZ-400).
 5. Appen fungerar inte i VS Codes inbyggda webbläsare (saknar mikrofon-/ljudstöd) — använd riktig webbläsare.
+#Test
