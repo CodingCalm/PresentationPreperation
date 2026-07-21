@@ -15,7 +15,7 @@ Skeppa arbetsträdets ändringar till main enligt repots branchstrategi (GitHub 
 5. **Öppna PR:** `gh pr create --fill` (eller med utförligare `--title`/`--body` på svenska om ändringen förtjänar det).
 6. **Aktivera auto-merge:** `gh pr merge --auto --squash`.
 7. **Rapportera** PR-URL:en och påminn om att branch protection mergar automatiskt när `build-and-test` är grön.
-8. **Städa efteråt** (valfritt om användaren vill fortsätta jobba direkt): när PR:en mergats — `git checkout main && git pull` och ta bort den lokala feature-branchen.
+8. **Städa efteråt:** när PR:en mergats — kör `/rensa` (växlar till `main`, pullar och tar bort den lokala mergade branchen).
 
 ## Regler
 
