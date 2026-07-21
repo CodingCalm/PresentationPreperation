@@ -7,6 +7,10 @@
     <RootNamespace>RostdynamikLab</RootNamespace>
     <InvariantGlobalization>false</InvariantGlobalization>
     <UserSecretsId>5e33d71b-d94c-4a6f-bb2f-1757916a168f</UserSecretsId>
+
+    <!-- Kodkvalitet: kör Roslyn-analyzers vid varje build och låt kodstil bli byggfel/varningar. -->
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <AnalysisMode>Recommended</AnalysisMode>
   </PropertyGroup>
 
 </Project>

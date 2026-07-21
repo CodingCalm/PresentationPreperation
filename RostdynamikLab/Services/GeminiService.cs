@@ -225,7 +225,7 @@ public class GeminiService(HttpClient httpClient, IConfiguration configuration, 
     private static string StripCodeFences(string text)
     {
         var trimmed = text.Trim();
-        if (trimmed.StartsWith("```"))
+        if (trimmed.StartsWith("```", StringComparison.Ordinal))
         {
             var firstNewline = trimmed.IndexOf('\n');
             var lastFence = trimmed.LastIndexOf("```", StringComparison.Ordinal);
