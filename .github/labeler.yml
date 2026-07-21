@@ -1,0 +1,18 @@
+# Mappar branch-prefix → PR-label (actions/labeler).
+# Återanvänder befintliga standardlabels (enhancement, bug, documentation) och
+# lägger bara till 'devops'. Namnen matchar kategorierna i .github/release.yml,
+# så en PR från t.ex. feature/... hamnar under 🚀 Nya funktioner i release-noten.
+# Prefix utan mappning (refactor/, test/, chore/, release/) får ingen label
+# och hamnar i catch-all-kategorin 📦 Övrigt.
+
+enhancement:
+  - head-branch: ['^feature/']
+
+bug:
+  - head-branch: ['^fix/', '^bugfix/', '^hotfix/']
+
+documentation:
+  - head-branch: ['^docs/']
+
+devops:
+  - head-branch: ['^ci/', '^devops/']
