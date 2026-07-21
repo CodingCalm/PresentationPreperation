@@ -1,0 +1,19 @@
+#!/bin/sh
+# pre-push: BLOCKERAR push om branch-namnet inte följer konventionen.
+# Lokal, frivillig kontroll (kan kringgås med `git push --no-verify`).
+# Den riktiga grinden är CI-checken server-side – detta är sista lokala spärren.
+#
+# Aktivera en gång per klon:  git config core.hooksPath .githooks
+. "$(dirname "$0")/_branch-name.sh"
+
+branch=$(git rev-parse --abbrev-ref HEAD)
+
+if branch_ok "$branch"; then
+  exit 0
+fi
+
+echo "✗ Push stoppad: branch-namnet \"$branch\" följer inte konventionen." >&2
+echo "  Använd ett prefix: $BRANCH_PREFIX_HINT" >&2
+echo "  Döp om:  git branch -m feature/kort-beskrivning" >&2
+echo "  (Måste du forcera igenom: git push --no-verify)" >&2
+exit 1

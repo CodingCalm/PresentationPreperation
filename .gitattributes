@@ -1,0 +1,5 @@
+# Shell-skript och git hooks måste ha LF-radslut.
+# Med CRLF blir shebangen "#!/bin/sh\r" och skriptet kraschar på Linux/Mac
+# (t.ex. i CI-runnern) med "bad interpreter".
+*.sh          text eol=lf
+.githooks/*   text eol=lf
