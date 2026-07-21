@@ -1,0 +1,29 @@
+# Styr hur GitHub grupperar automatiska release notes.
+# Grupperingen bygger på vilka labels varje mergad PR har.
+# Filen kör ingenting själv – den formar bara texten när notes genereras
+# (via "Generate release notes" i GitHubs release-UI eller `gh release create --generate-notes`).
+changelog:
+  exclude:
+    labels:
+      - ignore-for-release   # PR:er med denna label hamnar inte i release notes alls
+    authors:
+      - dependabot           # göm rena beroende-bumpar från bottar
+  categories:
+    - title: 🚀 Nya funktioner
+      labels:
+        - feature
+        - enhancement
+    - title: 🐛 Buggfixar
+      labels:
+        - bug
+        - fix
+    - title: ⚙️ DevOps & CI/CD
+      labels:
+        - devops
+        - ci
+    - title: 📝 Dokumentation
+      labels:
+        - documentation
+    - title: 📦 Övrigt
+      labels:
+        - "*"                # catch-all: allt som inte matchat ovan hamnar här

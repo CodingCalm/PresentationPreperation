@@ -1,0 +1,28 @@
+name: PR branch-namn
+
+# Server-side-grind: failar PR:en om käll-branchens namn bryter mot konventionen.
+# Till skillnad från de lokala hookarna går den INTE att kringgå med --no-verify.
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  branch-name:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Hämta koden
+        uses: actions/checkout@v4
+
+      - name: Kontrollera branch-namn
+        env:
+          # github.head_ref = namnet på PR:ens käll-branch (t.ex. feature/ny-graf)
+          BRANCH: ${{ github.head_ref }}
+        run: |
+          # Återanvänd samma regel som de lokala hookarna – en enda sanning.
+          . .githooks/_branch-name.sh
+          if branch_ok "$BRANCH"; then
+            echo "✓ Branch-namnet \"$BRANCH\" följer konventionen."
+          else
+            echo "::error::Branch \"$BRANCH\" följer inte konventionen. Tillåtna prefix: $BRANCH_PREFIX_HINT"
+            exit 1
+          fi

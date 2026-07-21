@@ -1,0 +1,17 @@
+#!/bin/sh
+# post-checkout: VARNAR (blockerar inte) om branch-namnet bryter mot konventionen.
+# Kör direkt efter `git checkout -b` / `git switch -c` – det närmaste "vid skapandet"
+# man kommer. Kan inte avbryta (branchen finns redan), så den bara påminner.
+#
+# Git skickar tre argument: $1 = tidigare HEAD, $2 = ny HEAD,
+# $3 = 1 vid branch-byte, 0 vid ren fil-checkout.
+[ "$3" = "1" ] || exit 0   # ignorera fil-checkouts, bry oss bara om branch-byten
+. "$(dirname "$0")/_branch-name.sh"
+
+branch=$(git rev-parse --abbrev-ref HEAD)
+
+if ! branch_ok "$branch"; then
+  echo "⚠ Branch \"$branch\" följer inte konventionen ($BRANCH_PREFIX_HINT)." >&2
+  echo "  Döp om innan du commitar:  git branch -m feature/kort-beskrivning" >&2
+fi
+exit 0
