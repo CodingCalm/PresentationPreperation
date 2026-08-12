@@ -8,21 +8,12 @@ COPY RostdynamikLab/RostdynamikLab.csproj RostdynamikLab/
 RUN dotnet restore RostdynamikLab/RostdynamikLab.csproj
 
 COPY RostdynamikLab/ RostdynamikLab/
-# --no-restore: raden ovan har redan gjort det, annars körs restore två gånger.
-RUN dotnet publish RostdynamikLab/RostdynamikLab.csproj -c Release -o /app --no-restore
+RUN dotnet publish RostdynamikLab/RostdynamikLab.csproj -c Release -o /app
 
-# Steg 2: kör på chiseled — Ubuntu nedskalad till exakt det .NET behöver.
-# Varken shell eller pakethanterare följer med, vilket halverar storleken och
-# tar bort de verktyg en angripare annars hade kunnat använda efter ett intrång.
-# Priset: felsökning sker via `podman logs`, inte `podman exec ... bash`.
-#
-# -extra är obligatoriskt — den varianten innehåller ICU, som krävs eftersom
-# projektet kör med InvariantGlobalization=false. Utan ICU startar appen inte alls.
-FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled-extra
-
-# Kopplar imagen till källkoden, t.ex. när den pushas till GitHub Packages.
-LABEL org.opencontainers.image.source="https://github.com/CodingCalm/PresentationPreperation"
-
+# Steg 2: kör på runtime-imagen — bara ASP.NET, ingen kompilator följer med.
+# Debian-varianten har ICU installerat, vilket krävs eftersom projektet kör
+# med InvariantGlobalization=false (alpine/chiseled saknar det och kraschar).
+FROM mcr.microsoft.com/dotnet/aspnet:10.0
 WORKDIR /app
 COPY --from=build /app .
 
