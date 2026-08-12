@@ -1,0 +1,10 @@
+# Håll build-kontexten liten och undvik att Windows-byggda binärer
+# smiter in i Linux-imagen.
+bin/
+obj/
+.git/
+.github/
+.claude/
+.vs/
+RostdynamikLab.Tests/
+**/*.user
